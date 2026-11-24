@@ -1,3 +1,5 @@
+// Patched by MajikTom: OnItemCraft handles bulk delivery and ReturnCraft refunds rejected crafts
+// without writing the removed ItemCraftTask.cancelled field. Refund notices use BasePlayer chat.
 using Facepunch;
 using Newtonsoft.Json;
 using Oxide.Core;
@@ -9,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Crafting Controller", "Whispers88", "3.3.7")]
+    [Info("Crafting Controller", "Whispers88", "3.3.8")]
     [Description("Allows you to modify the time spend crafting and which items can be crafted")]
 
     //Credits to previous authors Nivex & Mughisi
@@ -763,7 +765,7 @@ namespace Oxide.Plugins
                 if (trimmed)
                     tocraft = task.amount * task.blueprint.amountToCreate;
                 InstantBulkCraft(player, task, target, tocraft, task.skinID, defaultskin);
-                task.cancelled = true;
+                // The bulk output is already delivered; finish the hook before the task is queued.
                 return true;
             }
             return null;
@@ -841,8 +843,8 @@ namespace Oxide.Plugins
 
         private void ReturnCraft(ItemCraftTask task, BasePlayer crafter)
         {
-            task.cancelled = true;
-            Message(crafter.IPlayer, "NoInvSpace");
+            // Refund the remaining ingredients here; each caller immediately returns from OnItemCraft.
+            if (crafter.IsConnected) crafter.ChatMessage(GetLang("NoInvSpace", crafter.UserIDString));
             foreach (var item in task.takenItems)
             {
                 if (item.amount > 0)
